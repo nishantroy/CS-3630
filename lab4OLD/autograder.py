@@ -1,0 +1,76 @@
+from planning import *
+import sys
+import threading
+import json
+
+
+# Thread to grade A* algorithm
+class GradingThread(threading.Thread):
+    def __init__(self, grid, solution):
+        threading.Thread.__init__(self, daemon=True)
+        self.grid = grid
+        self.solution = solution
+
+    def run(self):
+        print("Grader running...\n")
+        astar(self.grid, heuristic)
+        points = 0
+
+        if len(self.grid.getVisited()) <= self.solution['expanded'] and len(self.grid.getVisited()) > 0:
+            print("Acceptable number of expanded nodes!")
+            print("Expanded nodes: " + str(len(self.grid.getVisited())))
+            print("10/10 points")
+            points += 10
+        elif len(self.grid.getVisited()) == 0:
+            print("No expanded nodes!")
+            print("Yours: " + str(len(self.grid.getVisited())))
+            print("Solution: " + str(self.solution['expanded']))
+            print("0/10 points")
+        else:
+            print("Too many expanded nodes!")
+            print("Yours: " + str(len(self.grid.getVisited())))
+            print("Solution: " + str(self.solution['expanded']))
+            print("0/10 points")
+
+        print()
+        pathlen = self.grid.checkPath()
+        if pathlen < 0:
+            print("Path invalid! Intersects obstacles or has moves > 1 grid space.")
+            print("0/30 points")
+        elif pathlen <= self.solution['pathlen'] and pathlen > 0 and grid.getPath()[-1] in grid.getGoals():
+            print("Correct path length!")
+            print("Path length: " + str(pathlen))
+            print("30/30 points")
+
+            points += 30
+        else:
+            print("Incorrect path length!")
+            print("Yours: " + str(pathlen))
+            print("Solution: " + str(self.solution['pathlen']))
+            print("0/30 points")
+
+        print("\nScore = " + str(points) + "/40\n")
+
+        print("Close visualizer window to exit")
+
+
+if __name__ == "__main__":
+    test = {}
+    if len(sys.argv) > 1:
+        try:
+            with open(sys.argv[1]) as testfile:
+                test = json.loads(testfile.read())
+        except:
+            print("Error opening test file, please check filename and json format")
+            raise
+    else:
+        print("correct usage: python3 autograder.py <testfile>")
+        exit()
+
+    grid = CozGrid(test['mapfile'])
+    visualizer = Visualizer(grid)
+    updater = UpdateThread(visualizer)
+    updater.start()
+    grader = GradingThread(grid, test['solution'])
+    grader.start()
+    visualizer.start()
