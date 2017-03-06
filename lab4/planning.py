@@ -73,6 +73,27 @@ def heuristic(current, goal):
     return euclDist
 
 
+def test():
+    global grid, stopevent
+    cozmoX = 3
+    cozmoY = 2
+
+    for i in range(0, 26):
+        grid.addObstacle((i, 0))
+        grid.addObstacle((i, 17))
+
+    for j in range(0, 18):
+        grid.addObstacle((0, j))
+        grid.addObstacle((25, j))
+
+    grid.addGoal((13, 8))
+
+    while not stopevent.is_set():
+        grid.clearVisited()
+        astar(grid, heuristic)
+        # print(grid.checkPath())
+
+
 def cozmoBehavior(robot: cozmo.robot.Robot):
     """Cozmo search behavior. See assignment document for details
 
@@ -114,7 +135,7 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
         # else:
         #     print("Going to center")
         # grid.addGoal((13, 8))
-
+        grid.clearVisited()
         astar(grid, heuristic)
         print(grid.checkPath())
 
@@ -130,7 +151,8 @@ class RobotThread(threading.Thread):
         threading.Thread.__init__(self, daemon=True)
 
     def run(self):
-        cozmo.run_program(cozmoBehavior)
+        test()
+        # cozmo.run_program(cozmoBehavior)
 
 
 # If run as executable, start RobotThread and launch visualizer with empty grid file
