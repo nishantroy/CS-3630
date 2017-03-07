@@ -2,6 +2,7 @@
 # author2: Madelyn Juby
 
 from visualizer import *
+import numpy
 import threading
 from queue import PriorityQueue
 import math
@@ -115,10 +116,6 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
     goalFound = False
     noObstacle = True
 
-    boxWidth = 25.4
-    boxHeight = 25.4
-    boxDiag = 25.4 * math.sqrt(2)
-
     cozmoX = 3
     cozmoY = 2
     cozmoDirection = 0
@@ -133,62 +130,131 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
 
     path = []
     pathIndex = 0
+    cube2NotFound = True
+    cube3NotFound = True
 
     if robot.world.light_cubes[cozmo.objects.LightCube1Id].is_visible:
         goalFound = True
-        cube1X = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.x
-        cube1Y = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.y
+
+        cube1ObservedX = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.x
+        cube1ObservedY = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.y
+        actualCoords = rotateCoordinates(cube1ObservedX, cube1ObservedY, cozmoDirection);
+        cube1X = actualCoords[0]
+        cube1Y = actualCoords[1]
         cube1X //= 25.4
         cube1Y //= 25.4
         cube1X += cozmoX
         cube1Y += cozmoY
         grid.addGoal((cube1X, cube1Y))
+
         astar(grid, heuristic)
         path = grid.getPath()
         pathIndex = 0
 
-        cube2NotFound = True
-        cube3NotFound = True
-
+    else:
+        grid.addGoal((13, 9))
 
     while not stopevent.is_set():
 
-        if robot.world.light_cubes[cozmo.objects.LightCube2Id].is_visible:
+        if cube2NotFound and robot.world.light_cubes[cozmo.objects.LightCube2Id].is_visible:
             cube2NotFound = False
 
-            pass
+            cube2ObservedX = robot.world.light_cubes[cozmo.objects.LightCube2Id].pose.position.x
+            cube2ObservedY = robot.world.light_cubes[cozmo.objects.LightCube2Id].pose.position.y
 
-        if robot.world.light_cubes[cozmo.objects.LightCube3Id].is_visible:
+            actualCoords = rotateCoordinates(cube2ObservedX, cube2ObservedY, cozmoDirection)
+            cube2X = actualCoords[0]
+            cube2Y = actualCoords[1]
+            cube2X //= 25.4
+            cube2Y //= 25.4
+            cube2X += cozmoX
+            cube2Y += cozmoY
+            grid.addObstacle((cube2X, cube2Y))
+            grid.clearStart()
+            grid.addStart((cozmoX, cozmoY))
+            astar(grid, heuristic)
+            path = grid.getPath()
+            pathIndex = 0
+
+        if cube3NotFound and robot.world.light_cubes[cozmo.objects.LightCube3Id].is_visible:
             cube3NotFound = False
-            pass
+            cube3ObservedX = robot.world.light_cubes[cozmo.objects.LightCube3Id].pose.position.x
+            cube3ObservedY = robot.world.light_cubes[cozmo.objects.LightCube3Id].pose.position.y
+
+            actualCoords = rotateCoordinates(cube3ObservedX, cube3ObservedY, cozmoDirection)
+            cube3X = actualCoords[0]
+            cube3Y = actualCoords[1]
+            cube3X //= 25.4
+            cube3Y //= 25.4
+            cube3X += cozmoX
+            cube3Y += cozmoY
+            grid.addObstacle((cube3X, cube3Y))
+            grid.clearStart()
+            grid.addStart((cozmoX, cozmoY))
+            astar(grid, heuristic)
+            path = grid.getPath()
+            pathIndex = 0
 
         if not goalFound and robot.world.light_cubes[cozmo.objects.LightCube1Id].is_visible:
-            cube1X = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.x
-            cube1Y = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.y
-            if cozmoDirection % 90 == 0:
-                cube1X //= 25.4
-                cube1Y //= 25.4
-                cube1X += cozmoX
-                cube1Y += cozmoY
-                grid.addGoal((cube1X, cube1Y))
-                grid.clearStart()
-                grid.addStart((cozmoX, cozmoY))
-                astar(grid, heuristic)
-                path = grid.getPath()
-                pathIndex = 0
+            cube1ObservedX = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.x
+            cube1ObservedY = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.y
+
+            actualCoords = rotateCoordinates(cube1ObservedX, cube1ObservedY, cozmoDirection);
+            cube1X = actualCoords[0]
+            cube1Y = actualCoords[1]
+            cube1X //= 25.4
+            cube1Y //= 25.4
+            cube1X += cozmoX
+            cube1Y += cozmoY
+            grid.addGoal((cube1X, cube1Y))
+            grid.clearStart()
+            grid.addStart((cozmoX, cozmoY))
+            astar(grid, heuristic)
+            path = grid.getPath()
+            pathIndex = 0
+            goalFound = True
+
+            # if cozmoDirection % 90 == 0:
+            #     cube1X //= 25.4
+            #     cube1Y //= 25.4
+            #     cube1X += cozmoX
+            #     cube1Y += cozmoY
+            #     grid.addGoal((cube1X, cube1Y))
+            #     grid.clearStart()
+            #     grid.addStart((cozmoX, cozmoY))
+            #     astar(grid, heuristic)
+            #     path = grid.getPath()
+            #     pathIndex = 0
+            # else:
+            #     if cube1Y < 0:
+            #         robot.turn_in_place(degrees(45))
+            #         cozmoDirection -= 45
+            #         cozmoDirection %= 360
+            #     else:
+            #         robot.turn_in_place(degrees(-45))
+            #         cozmoDirection += 45
+            #         cozmoDirection %= 360
+            #     continue
+        else:
+            if(pathIndex < len(path)):
+                nextSquare = path[pathIndex]
+                pathIndex += 1
+                cozmoDirection = moveToBox((cozmoX, cozmoY), nextSquare, cozmoDirection, robot)
             else:
-                if cube1Y < 0:
-                    robot.turn_in_place(degrees(45))
-                    cozmoDirection -= 45
-                    cozmoDirection %= 360
-                else:
-                    robot.turn_in_place(degrees(-45))
-                    cozmoDirection += 45
-                    cozmoDirection %= 360
-                continue
+                stopevent.set()
+                #reached
 
 
-def TurnToFace(current, nextDirection):
+def rotateCoordinates(x, y, cwAngle):
+    ccwAngle = 360 - cwAngle
+    ccwAngle = ccwAngle/180 * numpy.pi
+    observedCoords = numpy.array([x, y])
+    rotMatrix = numpy.array([[numpy.cos(ccwAngle), -numpy.sin(ccwAngle)],
+                             [numpy.sin(ccwAngle), numpy.cos(ccwAngle)]])
+    newCoords = rotMatrix.dot(observedCoords)
+    return newCoords
+
+def turnToFace(current, nextDirection):
     turnValue = nextDirection - current
 
     if turnValue > 0:
@@ -205,9 +271,8 @@ def TurnToFace(current, nextDirection):
     return turnValue
 
 
-def moveToBox(cozmoCoord, boxCoord, cozmoDirection):
-    leftmove = 0
-    rightmove = 0
+def moveToBox(cozmoCoord, boxCoord, cozmoDirection, robot):
+    nextDirection = 0
     boxX = boxCoord[0]
     boxY = boxCoord[1]
     cozmoX = cozmoCoord[0]
@@ -215,32 +280,48 @@ def moveToBox(cozmoCoord, boxCoord, cozmoDirection):
 
     if cozmoX == boxX:
         if cozmoY < boxY:
+            nextDirection = 270
             # Go 25 in +y
             pass
         elif cozmoY > boxY:
+            nextDirection = 90
             # Go 25 in -y
             pass
     elif cozmoY == boxY:
         if cozmoX < boxX:
             # Go 25 in +x
+            nextDirection = 0
             pass
         elif cozmoX > boxX:
+            nextDirection = 180
             # Go 25 in -x
             pass
     elif cozmoY < boxY:
         if cozmoX < boxX:
             # Go northwest
+            nextDirection = 315
             pass
         elif cozmoX > boxX:
+            nextDirection = 225
             # Go southwest
             pass
     elif cozmoX < boxX:
         if cozmoY > boxY:
             # Go northeast
+            nextDirection = 45
             pass
     elif cozmoX > boxX and cozmoY > boxY:
         # Go southeast
+        nextDirection = 135
         pass
+    turnAngle = turnToFace(cozmoDirection, nextDirection)
+    robot.turn_in_place(degrees(turnAngle))
+    cozmoDirection = nextDirection
+    if(cozmoDirection == 0 or cozmoDirection == 90 or cozmoDirection == 180 or cozmoDirection == 270):
+        robot.drive_straight(25.4, 30)
+    else:
+        robot.drive_straight(25.4*math.sqrt(2), 30)
+    return cozmoDirection
 
 
 ######################## DO NOT MODIFY CODE BELOW THIS LINE ####################################
