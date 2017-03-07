@@ -110,11 +110,11 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
 
     global grid, stopevent
 
-    robot.set_lift_height(0).wait_for_completed()
-    robot.set_head_angle(degrees(-5)).wait_for_completed()
+    robot.set_lift_height(1000).wait_for_completed()
+    robot.set_lift_height(-1000).wait_for_completed()
+    robot.set_head_angle(degrees(-100)).wait_for_completed()
 
     goalFound = False
-    noObstacle = True
 
     cozmoX = 3
     cozmoY = 2
@@ -128,130 +128,167 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
         grid.addObstacle((0, j))
         grid.addObstacle((25, j))
 
-    path = []
-    pathIndex = 0
+
     cube2NotFound = True
     cube3NotFound = True
 
     if robot.world.light_cubes[cozmo.objects.LightCube1Id].is_visible:
+        print("found it!")
         goalFound = True
 
         cube1ObservedX = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.x
         cube1ObservedY = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.y
-        actualCoords = rotateCoordinates(cube1ObservedX, cube1ObservedY, cozmoDirection);
-        cube1X = actualCoords[0]
-        cube1Y = actualCoords[1]
-        cube1X //= 25.4
-        cube1Y //= 25.4
-        cube1X += cozmoX
-        cube1Y += cozmoY
-        grid.addGoal((cube1X, cube1Y))
 
+        cube1X = cube1ObservedX
+        cube1Y = cube1ObservedY
+        cube1X /= 25
+        cube1X = numpy.round(cube1X)
+        cube1Y /= 25
+        cube1Y = numpy.round(cube1Y)
+        cube1X += 2
+        cube1Y += 1
+        grid.clearGoals()
+        grid.addGoal((cube1X, cube1Y))
+        grid.clearStart()
+        grid.setStart((cozmoX, cozmoY))
+        grid.clearVisited()
+        astar(grid, heuristic)
+        path = grid.getPath()
+
+        pathIndex = 0
+
+    else:
+        grid.clearGoals()
+        grid.addGoal((12, 8))
+        grid.clearVisited()
         astar(grid, heuristic)
         path = grid.getPath()
         pathIndex = 0
 
-    else:
-        grid.addGoal((13, 9))
-
     while not stopevent.is_set():
-
         if cube2NotFound and robot.world.light_cubes[cozmo.objects.LightCube2Id].is_visible:
+            print("Found Cube 2")
             cube2NotFound = False
 
             cube2ObservedX = robot.world.light_cubes[cozmo.objects.LightCube2Id].pose.position.x
             cube2ObservedY = robot.world.light_cubes[cozmo.objects.LightCube2Id].pose.position.y
 
-            actualCoords = rotateCoordinates(cube2ObservedX, cube2ObservedY, cozmoDirection)
-            cube2X = actualCoords[0]
-            cube2Y = actualCoords[1]
-            cube2X //= 25.4
-            cube2Y //= 25.4
-            cube2X += cozmoX
-            cube2Y += cozmoY
-            grid.addObstacle((cube2X, cube2Y))
+            cube2X = cube2ObservedX
+            cube2Y = cube2ObservedY
+            cube2X /= 25
+            cube2X = numpy.round(cube2X)
+            cube2Y /= 25
+            cube2Y = numpy.round(cube2Y)
+            cube2X += 2
+            cube2Y += 1
+
+            for i in range(-2, 3):
+                for j in range(-2, 3):
+                    grid.addObstacle((cube2X + i, cube2Y + j))
+
+
+            # grid.addObstacle((cube2X, cube2Y))
             grid.clearStart()
-            grid.addStart((cozmoX, cozmoY))
+            grid.setStart((cozmoX, cozmoY))
+            grid.clearVisited()
             astar(grid, heuristic)
             path = grid.getPath()
             pathIndex = 0
 
         if cube3NotFound and robot.world.light_cubes[cozmo.objects.LightCube3Id].is_visible:
+            print("Found Cube 3")
             cube3NotFound = False
             cube3ObservedX = robot.world.light_cubes[cozmo.objects.LightCube3Id].pose.position.x
             cube3ObservedY = robot.world.light_cubes[cozmo.objects.LightCube3Id].pose.position.y
 
-            actualCoords = rotateCoordinates(cube3ObservedX, cube3ObservedY, cozmoDirection)
-            cube3X = actualCoords[0]
-            cube3Y = actualCoords[1]
-            cube3X //= 25.4
-            cube3Y //= 25.4
-            cube3X += cozmoX
-            cube3Y += cozmoY
-            grid.addObstacle((cube3X, cube3Y))
+            cube3X = cube3ObservedX
+            cube3Y = cube3ObservedY
+            cube3X /= 25
+            cube3X = numpy.round(cube3X)
+            cube3Y /= 25
+            cube3Y = numpy.round(cube3Y)
+            cube3X += 2
+            cube3Y += 1
+            for i in range(-2, 3):
+                for j in range(-2, 3):
+                    grid.addObstacle((cube3X + i, cube3Y + j))
+
             grid.clearStart()
-            grid.addStart((cozmoX, cozmoY))
+            grid.setStart((cozmoX, cozmoY))
+            grid.clearVisited()
             astar(grid, heuristic)
             path = grid.getPath()
             pathIndex = 0
 
         if not goalFound and robot.world.light_cubes[cozmo.objects.LightCube1Id].is_visible:
+            print("No goal found, but seen it now")
             cube1ObservedX = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.x
             cube1ObservedY = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.y
 
-            actualCoords = rotateCoordinates(cube1ObservedX, cube1ObservedY, cozmoDirection);
-            cube1X = actualCoords[0]
-            cube1Y = actualCoords[1]
-            cube1X //= 25.4
-            cube1Y //= 25.4
-            cube1X += cozmoX
-            cube1Y += cozmoY
-            grid.addGoal((cube1X, cube1Y))
+            cube1X = cube1ObservedX
+            cube1Y = cube1ObservedY
+            cube1X /= 25
+            cube1X = numpy.round(cube1X)
+            cube1Y /= 25
+            cube1Y = numpy.round(cube1Y)
+            cube1X += 2
+            cube1Y += 1
+
+            for i in range(-1, 2):
+                for j in range(-1, 2):
+                    grid.addObstacle((cube1X + i, cube1Y + j))
+            grid.clearGoals()
+            if cube1X < cozmoX:
+                grid.addGoal((cube1X+2, cube1Y))
+            else:
+                grid.addGoal((cube1X - 2, cube1Y))
             grid.clearStart()
-            grid.addStart((cozmoX, cozmoY))
+            grid.setStart((cozmoX, cozmoY))
+            grid.clearVisited()
             astar(grid, heuristic)
             path = grid.getPath()
             pathIndex = 0
             goalFound = True
 
-            # if cozmoDirection % 90 == 0:
-            #     cube1X //= 25.4
-            #     cube1Y //= 25.4
-            #     cube1X += cozmoX
-            #     cube1Y += cozmoY
-            #     grid.addGoal((cube1X, cube1Y))
-            #     grid.clearStart()
-            #     grid.addStart((cozmoX, cozmoY))
-            #     astar(grid, heuristic)
-            #     path = grid.getPath()
-            #     pathIndex = 0
-            # else:
-            #     if cube1Y < 0:
-            #         robot.turn_in_place(degrees(45))
-            #         cozmoDirection -= 45
-            #         cozmoDirection %= 360
-            #     else:
-            #         robot.turn_in_place(degrees(-45))
-            #         cozmoDirection += 45
-            #         cozmoDirection %= 360
-            #     continue
+
         else:
-            if(pathIndex < len(path)):
+            if pathIndex < len(path):
                 nextSquare = path[pathIndex]
+                print("Next: " + str(nextSquare))
+                print("Now: " + str((cozmoX, cozmoY)))
                 pathIndex += 1
                 cozmoDirection = moveToBox((cozmoX, cozmoY), nextSquare, cozmoDirection, robot)
+                cozmoX = nextSquare[0]
+                cozmoY = nextSquare[1]
             else:
-                stopevent.set()
+                if not goalFound:
+                    robot.turn_in_place(degrees(45)).wait_for_completed()
+                    cozmoDirection -= 45
+                    if cozmoDirection < 0:
+                        cozmoDirection += 360
+                    print("Searching from center!")
+                else:
+                    print("At goal!")
+                    if 
+                    stopevent.set()
                 #reached
 
 
 def rotateCoordinates(x, y, cwAngle):
-    ccwAngle = 360 - cwAngle
-    ccwAngle = ccwAngle/180 * numpy.pi
-    observedCoords = numpy.array([x, y])
-    rotMatrix = numpy.array([[numpy.cos(ccwAngle), -numpy.sin(ccwAngle)],
-                             [numpy.sin(ccwAngle), numpy.cos(ccwAngle)]])
-    newCoords = rotMatrix.dot(observedCoords)
+    x //= 25
+    y //= 25
+    # print("X: " + str(x))
+    # print("Y: " + str(y))
+    # print("angle: " + str(cwAngle))
+    # ccwAngle = 360 - cwAngle
+    # ccwAngle = ccwAngle/180 * numpy.pi
+    # observedCoords = numpy.array([x, y])
+    # rotMatrix = numpy.array([[numpy.cos(ccwAngle), -numpy.sin(ccwAngle)],
+    #                          [numpy.sin(ccwAngle), numpy.cos(ccwAngle)]])
+    # newCoords = rotMatrix.dot(observedCoords)
+    # print(newCoords)
+
+    newCoords = (x, y)
     return newCoords
 
 def turnToFace(current, nextDirection):
@@ -287,6 +324,9 @@ def moveToBox(cozmoCoord, boxCoord, cozmoDirection, robot):
             nextDirection = 90
             # Go 25 in -y
             pass
+        else:
+            nextDirection = cozmoDirection
+            return cozmoDirection
     elif cozmoY == boxY:
         if cozmoX < boxX:
             # Go 25 in +x
@@ -315,12 +355,12 @@ def moveToBox(cozmoCoord, boxCoord, cozmoDirection, robot):
         nextDirection = 135
         pass
     turnAngle = turnToFace(cozmoDirection, nextDirection)
-    robot.turn_in_place(degrees(turnAngle))
+    robot.turn_in_place(degrees(turnAngle)).wait_for_completed()
     cozmoDirection = nextDirection
     if(cozmoDirection == 0 or cozmoDirection == 90 or cozmoDirection == 180 or cozmoDirection == 270):
-        robot.drive_straight(25.4, 30)
+        robot.drive_straight(cozmo.util.distance_mm(25), cozmo.util.speed_mmps(30)).wait_for_completed()
     else:
-        robot.drive_straight(25.4*math.sqrt(2), 30)
+        robot.drive_straight(cozmo.util.distance_mm(25 * math.sqrt(2)), cozmo.util.speed_mmps(30)).wait_for_completed()
     return cozmoDirection
 
 
