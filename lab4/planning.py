@@ -190,20 +190,25 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
     actualCube = (0, 0)
 
     while not stopevent.is_set():
-        # if robot.world.light_cubes[cozmo.objects.LightCube1Id].is_visible:
-        #     zAngle = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.rotation.angle_z.degrees
-        #     if zAngle > 0:
-        #         zAngle -= 180
-        #     else:
-        #         zAngle += 180
-        #
-        #     print(str(zAngle))
-        # robotsPose = (robot.pose.position.x, robot.pose.position.y)
-        # print(str(robotsPose))
-        # robot.drive_straight(cozmo.util.distance_mm(25), cozmo.util.speed_mmps(30)).wait_for_completed()
-        # robotsPose = (robot.pose.position.x, robot.pose.position.y)
-        # print(str(robotsPose))
-        # continue
+    #     if robot.world.light_cubes[cozmo.objects.LightCube1Id].is_visible:
+    #         zAngle = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.rotation.angle_z.degrees
+    #         if zAngle > 0:
+    #             zAngle -= 180
+    #         else:
+    #             zAngle += 180
+    #
+    #         # print(str(zAngle))
+    #     robotsPose = (robot.pose.position.x, robot.pose.position.y)
+    #     robotsAngle = robot.pose_angle.degrees
+    #     print(str(robotsPose))
+    #     print(str(robotsAngle))
+    #     robot.drive_straight(cozmo.util.distance_mm(25), cozmo.util.speed_mmps(30)).wait_for_completed()
+    #     robot.turn_in_place(cozmo.util.degrees(270)).wait_for_completed()
+    #     robotsPose = (robot.pose.position.x, robot.pose.position.y)
+    #     robotsAngle = robot.pose_angle.degrees
+    #     print(str(robotsPose))
+    #     print(str(robotsAngle))
+    #     break
 
         if cube2NotFound and robot.world.light_cubes[cozmo.objects.LightCube2Id].is_visible:
             print("Found Cube 2")
@@ -339,7 +344,48 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                     print("Searching from center!")
                 else:
                     print("At goal!")
-                    goal = grid.getGoals()[0]
+                    nextDirection = 0
+                    if cozmoX == actualCube[0]:
+                        if cozmoY < actualCube[1]:
+                            nextDirection = 270
+                            # Go 25 in +y
+                            pass
+                        elif cozmoY > actualCube[1]:
+                            nextDirection = 90
+                            # Go 25 in -y
+                            pass
+                        else:
+                            nextDirection = cozmoDirection
+                            return cozmoDirection
+                    elif cozmoY == actualCube[1]:
+                        if cozmoX < actualCube[0]:
+                            # Go 25 in +x
+                            nextDirection = 0
+                            pass
+                        elif cozmoX > actualCube[0]:
+                            nextDirection = 180
+                            # Go 25 in -x
+                            pass
+                    elif cozmoY < actualCube[1]:
+                        if cozmoX < actualCube[0]:
+                            # Go northwest
+                            nextDirection = 315
+                            pass
+                        elif cozmoX > actualCube[0]:
+                            nextDirection = 225
+                            # Go southwest
+                            pass
+                    elif cozmoX < actualCube[0]:
+                        if cozmoY > actualCube[1]:
+                            # Go northeast
+                            nextDirection = 45
+                            pass
+                    elif cozmoX > actualCube[0] and cozmoY > actualCube[1]:
+                        # Go southeast
+                        nextDirection = 135
+                        pass
+                    turnAngle = turnToFace(cozmoDirection, nextDirection)
+                    robot.turn_in_place(degrees(turnAngle)).wait_for_completed()
                     stopevent.set()
                     # reached
 
