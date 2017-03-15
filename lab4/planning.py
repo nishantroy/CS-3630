@@ -107,16 +107,23 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
 
     global grid, stopevent
 
+    # Lift up arms
     robot.set_lift_height(1000).wait_for_completed()
-    # robot.set_lift_height(-1000).wait_for_completed()
+
+    # Set head to look straight ahead
     robot.set_head_angle(degrees(0)).wait_for_completed()
 
+    # Flag to tell whether cubes have been found yet
     goalFound = False
+    cube2Found = False
+    cube3Found = False
 
+    # Cozmo starting position and direction
     cozmoX = 3
     cozmoY = 2
     cozmoDirection = 0
 
+    # Add walls as obstacles
     for i in range(0, 26):
         grid.addObstacle((i, 0))
         grid.addObstacle((i, 17))
@@ -125,56 +132,58 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
         grid.addObstacle((0, j))
         grid.addObstacle((25, j))
 
-    cube2NotFound = True
-    cube3NotFound = True
+    # Coordinates of Cube 1
+    actualCube = (0, 0)
 
     if robot.world.light_cubes[cozmo.objects.LightCube1Id].is_visible:
-        print("found it!")
         cube1ObservedX = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.x
         cube1ObservedY = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.y
 
         zAngle = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.rotation.angle_z.radians
-        print(str(zAngle))
 
-        goalX = numpy.round((cube1ObservedX + (math.cos(zAngle) * 25)) / 25)
-        goalY = numpy.round((cube1ObservedY + (math.sin(zAngle) * 25)) / 25)
-        goal = (goalX, goalY)
+        if zAngle > 0:
+            zAngle -= math.pi
+        elif zAngle < 0:
+            zAngle += math.pi
+
         cube1X = cube1ObservedX / 25
         cube1X = numpy.round(cube1X)
-        cube1Y = cube1ObservedX / 25
+        cube1Y = cube1ObservedY / 25
         cube1Y = numpy.round(cube1Y)
         cube1X += 3
         cube1Y += 2
 
-        for i in range(-1, 2):
-            for j in range(-1, 2):
-                grid.addObstacle((cube1X + i, cube1Y + j))
+        actualCube = (cube1X, cube1Y)
 
-        # grid.addObstacles(obstacles)
-        # grid.setGoal((cube1X, cube1Y))
-        # goalX = cube1X
-        # goalY = cube1Y
-        # if zAngle == -2:
-        #     # Go to left of seen face
-        #     pass
-        # elif zAngle == 2:
-        #     # Go to right of seen face
-        #     pass
-        # elif zAngle == 3 or zAngle == -3:
-        #     # Go to opposite side
-        #     pass
-        # else:
-        #     # Go to this face
-        #     pass
-        # if cube1X < cozmoX:
-        print("Goal: " + str(goal))
+        goalX = numpy.round(cube1X + (numpy.round((math.cos(zAngle))) * 4))
+        goalY = numpy.round(cube1Y + (numpy.round((math.sin(zAngle))) * 4))
+
+        # Check if goal is in the wall, and offset it
+
+        if goalX <= 0:
+            goalX = 1
+        elif goalX >= 25:
+            goalX = 24
+
+        if goalY <= 0:
+            goalY = 1
+        elif goalY >= 17:
+            goalY = 16
+
+        goal = (goalX, goalY)
+
+        grid.clearVisited()
         grid.clearGoals()
+        for i in range(-2, 3):
+            for j in range(-2, 3):
+                obstacle = (cube1X + i, cube1Y + j)
+                if grid.coordInBounds(obstacle) is True and obstacle != goal:
+                    grid.addObstacle(obstacle)
+
         grid.addGoal(goal)
-        # else:
-        #     grid.addGoal((cube1X, cube1Y))
+
         grid.clearStart()
         grid.setStart((cozmoX, cozmoY))
-        grid.clearVisited()
         astar(grid, heuristic)
         path = grid.getPath()
         pathIndex = 0
@@ -187,32 +196,31 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
         path = grid.getPath()
         pathIndex = 0
 
-    actualCube = (0, 0)
-
     while not stopevent.is_set():
-    #     if robot.world.light_cubes[cozmo.objects.LightCube1Id].is_visible:
-    #         zAngle = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.rotation.angle_z.degrees
-    #         if zAngle > 0:
-    #             zAngle -= 180
-    #         else:
-    #             zAngle += 180
-    #
-    #         # print(str(zAngle))
-    #     robotsPose = (robot.pose.position.x, robot.pose.position.y)
-    #     robotsAngle = robot.pose_angle.degrees
-    #     print(str(robotsPose))
-    #     print(str(robotsAngle))
-    #     robot.drive_straight(cozmo.util.distance_mm(25), cozmo.util.speed_mmps(30)).wait_for_completed()
-    #     robot.turn_in_place(cozmo.util.degrees(270)).wait_for_completed()
-    #     robotsPose = (robot.pose.position.x, robot.pose.position.y)
-    #     robotsAngle = robot.pose_angle.degrees
-    #     print(str(robotsPose))
-    #     print(str(robotsAngle))
-    #     break
+        # robot.turn_in_place(cozmo.util.degrees(31)).wait_for_completed()
+        # break
+        #     if robot.world.light_cubes[cozmo.objects.LightCube1Id].is_visible:
+        #         zAngle = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.rotation.angle_z.degrees
+        #         if zAngle > 0:
+        #             zAngle -= 180
+        #         else:
+        #             zAngle += 180
+        #
+        #         # print(str(zAngle))
+        #     robotsPose = (robot.pose.position.x, robot.pose.position.y)
+        #     robotsAngle = robot.pose_angle.degrees
+        #     print(str(robotsPose))
+        #     print(str(robotsAngle))
+        #     robot.drive_straight(cozmo.util.distance_mm(25), cozmo.util.speed_mmps(30)).wait_for_completed()
+        #     robot.turn_in_place(cozmo.util.degrees(270)).wait_for_completed()
+        #     robotsPose = (robot.pose.position.x, robot.pose.position.y)
+        #     robotsAngle = robot.pose_angle.degrees
+        #     print(str(robotsPose))
+        #     print(str(robotsAngle))
+        #     break
 
-        if cube2NotFound and robot.world.light_cubes[cozmo.objects.LightCube2Id].is_visible:
-            print("Found Cube 2")
-            cube2NotFound = False
+        if not cube2Found and robot.world.light_cubes[cozmo.objects.LightCube2Id].is_visible:
+            cube2Found = True
 
             cube2ObservedX = robot.world.light_cubes[cozmo.objects.LightCube2Id].pose.position.x
             cube2ObservedY = robot.world.light_cubes[cozmo.objects.LightCube2Id].pose.position.y
@@ -228,7 +236,9 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
 
             for i in range(-2, 3):
                 for j in range(-2, 3):
-                    grid.addObstacle((cube2X + i, cube2Y + j))
+                    obstacle = (cube2X + i, cube2Y + j)
+                    if grid.coordInBounds(obstacle) is True:
+                        grid.addObstacle(obstacle)
 
             grid.clearStart()
             grid.setStart((cozmoX, cozmoY))
@@ -237,9 +247,8 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
             path = grid.getPath()
             pathIndex = 0
 
-        if cube3NotFound and robot.world.light_cubes[cozmo.objects.LightCube3Id].is_visible:
-            print("Found Cube 3")
-            cube3NotFound = False
+        if not cube3Found and robot.world.light_cubes[cozmo.objects.LightCube3Id].is_visible:
+            cube3Found = True
             cube3ObservedX = robot.world.light_cubes[cozmo.objects.LightCube3Id].pose.position.x
             cube3ObservedY = robot.world.light_cubes[cozmo.objects.LightCube3Id].pose.position.y
 
@@ -253,7 +262,10 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
             cube3Y += 2
             for i in range(-2, 3):
                 for j in range(-2, 3):
-                    grid.addObstacle((cube3X + i, cube3Y + j))
+                    obstacle = (cube3X + i, cube3Y + j)
+                    if grid.coordInBounds(obstacle) is True:
+                        grid.addObstacle(obstacle)
+
 
             grid.clearStart()
             grid.setStart((cozmoX, cozmoY))
@@ -263,25 +275,16 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
             pathIndex = 0
 
         if not goalFound and robot.world.light_cubes[cozmo.objects.LightCube1Id].is_visible:
-            print("No goal found, but seen it now")
             cube1ObservedX = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.x
             cube1ObservedY = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.y
 
-            print(str((cube1ObservedX, cube1ObservedY)))
-
             zAngle = robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.rotation.angle_z.radians
-            print("Before correction: " + str(zAngle))
 
             if zAngle > 0:
                 zAngle -= math.pi
             elif zAngle < 0:
                 zAngle += math.pi
 
-            print("After correction: " + str(zAngle))
-
-            # goalX = numpy.round((cube1ObservedX + (math.cos(zAngle) * 50)) / 25) + 3
-            # goalY = numpy.round((cube1ObservedY + (math.sin(zAngle) * 50)) / 25) + 2
-            # goal = (goalX, goalY)
             cube1X = cube1ObservedX / 25
             cube1X = numpy.round(cube1X)
             cube1Y = cube1ObservedY / 25
@@ -293,6 +296,8 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
 
             goalX = numpy.round(cube1X + (numpy.round((math.cos(zAngle))) * 4))
             goalY = numpy.round(cube1Y + (numpy.round((math.sin(zAngle))) * 4))
+
+            # Check if goal is in the wall, and offset it
             if goalX <= 0:
                 goalX = 1
             elif goalX >= 25:
@@ -305,9 +310,6 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
 
             goal = (goalX, goalY)
 
-            print("Saw it at : " + str((cube1X, cube1Y)))
-
-            print("Going to: " + str(goal))
             grid.clearVisited()
             grid.clearGoals()
             for i in range(-2, 3):
@@ -325,12 +327,9 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
             pathIndex = 0
             goalFound = True
 
-
         else:
             if pathIndex < len(path):
                 nextSquare = path[pathIndex]
-                print("Next: " + str(nextSquare))
-                print("Now: " + str((cozmoX, cozmoY)))
                 pathIndex += 1
                 cozmoDirection = moveToBox((cozmoX, cozmoY), nextSquare, cozmoDirection, robot)
                 cozmoX = nextSquare[0]
@@ -341,9 +340,7 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                     cozmoDirection -= 45
                     if cozmoDirection < 0:
                         cozmoDirection += 360
-                    print("Searching from center!")
                 else:
-                    print("At goal!")
                     nextDirection = 0
                     if cozmoX == actualCube[0]:
                         if cozmoY < actualCube[1]:
@@ -386,28 +383,22 @@ def cozmoBehavior(robot: cozmo.robot.Robot):
                         pass
                     turnAngle = turnToFace(cozmoDirection, nextDirection)
                     robot.turn_in_place(degrees(turnAngle)).wait_for_completed()
+                    robotsPose = (
+                    numpy.round(robot.pose.position.x / 25) + 3, numpy.round(robot.pose.position.y / 25) + 2)
+                    if robot.world.light_cubes[cozmo.objects.LightCube1Id].is_visible:
+                        cubeCoords = (
+                        numpy.round(robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.x / 25) + 3
+                        , numpy.round(robot.world.light_cubes[cozmo.objects.LightCube1Id].pose.position.y / 25) + 2)
+                        distance = math.sqrt(
+                            (robotsPose[0] - cubeCoords[0]) ** 2 + (robotsPose[1] - cubeCoords[1]) ** 2)
+                        print(str(distance))
+                        if distance > 3:
+                            robot.drive_straight(cozmo.util.distance_mm((distance * 25) // 2),
+                                                 cozmo.util.speed_mmps(30)).wait_for_completed()
+
                     stopevent.set()
+                    break
                     # reached
-
-
-#
-# def rotateCoordinates(x, y, cwAngle):
-#     x //= 25
-#     y //= 25
-#
-#     newCoords = (x, y)
-#     return newCoords
-
-
-def getAngleToTurn(currentAngle, current, next):
-    nextY = next[1] * 25
-    currentY = current[1] * 25
-    nextX = next[0] * 25
-    currentX = current[0] * 25
-    angle = math.atan2((nextY - currentY + 20), (nextX - currentX + 20))
-    angle = math.degrees(angle)
-
-    pass
 
 
 def turnToFace(current, nextDirection):
