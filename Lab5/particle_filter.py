@@ -117,12 +117,17 @@ def measurement_update(particles, measured_marker_list, grid):
     random_particles = []
     random_count = 75
 
-    measured_particles = np.random.choice(particles, size=len(particles) - random_count, p=norm_part_weights)
+    measured_particles = np.random.choice(particles, size=len(particles) - random_count, replace=True, p=norm_part_weights)
+    
+    measured_copy = []
+    for particle in measured_particles:
+        measured_copy.append(Particle(particle.x, particle.y, particle.h))
+
+    measured_particles = measured_copy
 
     for x in range(random_count):
         rand_x, rand_y = grid.random_free_place()
         random_particles.append(Particle(rand_x, rand_y))
 
     return np.concatenate([random_particles, measured_particles])
-
 
