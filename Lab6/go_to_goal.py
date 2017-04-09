@@ -87,7 +87,7 @@ def cvt_2Dmarker_measurements(ar_markers):
         if not find_dup:
             marker2d_list.append((x,y,math.degrees(yaw)))
 
-return marker2d_list
+    return marker2d_list
 
 
 #compute robot odometry based on past and current pose
