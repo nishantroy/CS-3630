@@ -14,22 +14,22 @@ from ar_markers.hamming.detect import detect_markers
 
 from utils import *
 
-#obtain marker distance and orientation
-def cvt_marker_measurements(ar_markers):
 
+# obtain marker distance and orientation
+def cvt_marker_measurements(ar_markers):
     marker2d_list = [];
 
     for m in ar_markers:
         R_1_2, J = cv2.Rodrigues(m.rvec)
-        R_1_1p = np.matrix([[0,0,1], [0,-1,0], [1,0,0]])
-        R_2_2p = np.matrix([[0,-1,0], [0,0,-1], [1,0,0]])
+        R_1_1p = np.matrix([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
+        R_2_2p = np.matrix([[0, -1, 0], [0, 0, -1], [1, 0, 0]])
         R_2p_1p = np.matmul(np.matmul(inv(R_2_2p), inv(R_1_2)), R_1_1p)
         print('\n', R_2p_1p)
-        yaw = -math.atan2(R_2p_1p[2,0], R_2p_1p[0,0])
-        #print('\nyaw', yaw)
+        yaw = -math.atan2(R_2p_1p[2, 0], R_2p_1p[0, 0])
+        # print('\nyaw', yaw)
         x, y = m.tvec[2][0], -m.tvec[0][0]
-        #print('x =', x, 'y =', y)
-        
+        # print('x =', x, 'y =', y)
+
         # remove any duplate markers
         dup_thresh = 2.0
         find_dup = False
@@ -38,13 +38,12 @@ def cvt_marker_measurements(ar_markers):
                 find_dup = True
                 break
         if not find_dup:
-            marker2d_list.append((x,y,yaw))
+            marker2d_list.append((x, y, yaw))
 
     return marker2d_list
 
 
 def display_opencv(robot: cozmo.robot.Robot):
-
     # params
     camK = np.matrix([[295, 0, 160], [0, 295, 120], [0, 0, 1]], dtype='float32')
     marker_size = 4.8
@@ -61,13 +60,13 @@ def display_opencv(robot: cozmo.robot.Robot):
             # convert pil to opencv
             open_cv_image = np.array(latest_image.raw_image)
 
-            #detect markers
+            # detect markers
             markers = detect_markers(open_cv_image, marker_size, camK)
 
             for marker in markers:
                 marker.highlite_marker(open_cv_image, draw_frame=True, camK=camK)
-                #print("ID =", marker.id);
-                #print(marker.contours);
+                # print("ID =", marker.id);
+                # print(marker.contours);
 
             cv2.imshow("Markers", open_cv_image)
             cv2.waitKey(1)

@@ -9,6 +9,7 @@ import cozmo
 import numpy as np
 from numpy.linalg import inv
 import threading
+import time
 
 from ar_markers.hamming.detect import detect_markers
 
@@ -19,6 +20,7 @@ from setting import *
 from particle_filter import *
 from utils import *
 from cozmo.util import *
+from cozmo import anim
 
 # camera params
 camK = np.matrix([[295, 0, 160], [0, 295, 120], [0, 0, 1]], dtype='float32')
@@ -62,7 +64,7 @@ async def image_processing(robot):
 
 # calculate marker pose
 def cvt_2Dmarker_measurements(ar_markers):
-    marker2d_list = []
+    marker2d_list = [];
 
     for m in ar_markers:
         R_1_2, J = cv2.Rodrigues(m.rvec)
@@ -73,7 +75,7 @@ def cvt_2Dmarker_measurements(ar_markers):
         yaw = -math.atan2(R_2p_1p[2, 0], R_2p_1p[0, 0])
 
         x, y = m.tvec[2][0] + 0.5, -m.tvec[0][0]
-        print('x =', x, 'y =', y, 'theta =', yaw)
+        # print('x =', x, 'y =', y,'theta =', yaw)
 
         # remove any duplate markers
         dup_thresh = 2.0
@@ -100,7 +102,7 @@ def compute_odometry(curr_pose, cvt_inch=True):
     if cvt_inch:
         dx, dy = dx / 25.6, dy / 25.6
 
-    return dx, dy, diff_heading_deg(curr_h, last_h)
+    return (dx, dy, diff_heading_deg(curr_h, last_h))
 
 
 # particle filter functionality
@@ -119,7 +121,7 @@ class ParticleFilter:
         # ---------- Show current state ----------
         # Try to find current best estimate for display
         m_x, m_y, m_h, m_confident = compute_mean_pose(self.particles)
-        return m_x, m_y, m_h, m_confident
+        return (m_x, m_y, m_h, m_confident)
 
 
 async def run(robot: cozmo.robot.Robot):
@@ -132,66 +134,122 @@ async def run(robot: cozmo.robot.Robot):
     # start particle filter
     pf = ParticleFilter(grid)
 
+    end = 0
+
+    ###################
+
+    await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
+    goalReached = False
     while True:
+        await robot.drive_straight(distance_mm(0), speed_mmps(50)).wait_for_completed()
+        print(robot.is_picked_up)
+        if goalReached and not robot.is_picked_up:
+            continue
+
+        if robot.is_picked_up:
+            robot.stop_all_motors()
+            pf = ParticleFilter(grid)
+            await robot.play_anim_trigger(anim.Triggers.ReactToPickup).wait_for_completed()
+            await robot.set_head_angle(degrees(10)).wait_for_completed()
+            await robot.drive_straight(distance_mm(0), speed_mmps(50)).wait_for_completed()
+            goalReached = False
+            continue
+
         currPose = robot.pose
-        poseDiff = compute_odometry(currPose)
+        odomDiff = compute_odometry(currPose)
 
         markers = await image_processing(robot)
         markers = cvt_2Dmarker_measurements(markers)
 
-        meanEstimate = pf.update(poseDiff, markers)
+        meanEstimate = pf.update(odomDiff, markers)
+        meanEstimateX = meanEstimate[0]
+        meanEstimateY = meanEstimate[1]
+        meanEstimateTh = meanEstimate[2]
+        meanEstimateConfidence = meanEstimate[3]
 
         gui.show_particles(pf.particles)
-        gui.show_mean(meanEstimate[0], meanEstimate[1], meanEstimate[2], meanEstimate[3])
+        gui.show_mean(meanEstimateX, meanEstimateY, meanEstimateTh, meanEstimateConfidence)
         gui.updated.set()
 
-        if meanEstimate[3]:
-            # PF thinks converged
-            # Go from where you think you are to goal
-            print("CONVERGED")
-            estimatedX = meanEstimate[0]
-            estimatedY = meanEstimate[1]
-            estimatedTh = meanEstimate[2]
-
-            face90 = -estimatedTh + 90
-            print(face90)
-            robot.stop_all_motors()
-            await robot.turn_in_place(degrees(face90), in_parallel=False, num_retries=0).wait_for_completed()
-
-
-            turnAngle = math.atan2(math.fabs(estimatedY - goal[1]), math.fabs(estimatedX - goal[0]))
-
-            currentToGoalX = goal[0] - estimatedX
-            currentToGoalY = goal[1] - estimatedY
-            turn = 0
-            faceGoal = 0
-
-            if currentToGoalX > 0 and currentToGoalY > 0:
-                turn = 0 - turnAngle
-                faceGoal = -((math.pi/2) - turnAngle)
-            elif currentToGoalX > 0 >= currentToGoalY:
-                turn = -(math.pi - turnAngle)
-                faceGoal = ((math.pi / 2) - turnAngle)
-            elif currentToGoalX <= 0 < currentToGoalY:
-                turn = -(turnAngle + math.pi / 2)
-                faceGoal = -(turnAngle + (math.pi/2))
-            elif currentToGoalX <= 0 and currentToGoalY <= 0:
-                turn = math.pi - turnAngle
-                faceGoal = turnAngle + math.pi/2
-
-            await robot.turn_in_place(cozmo.util.Angle(turn), in_parallel=False).wait_for_completed()
-            robot.stop_all_motors()
-
-            await robot.drive_straight(cozmo.util.Distance
-                                       (grid_distance(currentToGoalX, goal[0], currentToGoalY, goal[1])),
-                                       cozmo.util.Speed(25)).wait_for_completed()
-            await robot.turn_in_place(cozmo.util.Angle(faceGoal)).wait_for_completed()
-
-            await robot.say_text("Bitches I have arrive").wait_for_completed()
-
+        if not meanEstimateConfidence:
+            # Haven't yet converged, turn in place
+            await robot.drive_wheels(-10, 10, duration=0)
         else:
-            # look around, turn in place and update filter
-            await robot.drive_wheels(10, -10, duration=0)
+            robot.stop_all_motors()
+
+            goalX = goal[0]
+            goalY = goal[1]
+
+            # await turnToFace(meanEstimateTh, math.degrees(90), robot)
+            print(meanEstimateTh)
+            print(- meanEstimateTh + 85)
+            await robot.turn_in_place(degrees(-meanEstimateTh + 85)).wait_for_completed()
+            robot.stop_all_motors()
+            gui.show_particles(pf.particles)
+            gui.show_mean(meanEstimateX, meanEstimateY, 90, meanEstimateConfidence)
+            gui.updated.set()
+
+            angleToGoal = math.atan2(math.fabs(meanEstimateX - goalX), math.fabs(meanEstimateY - goalY))
+
+            if goalX - meanEstimateX > 0:
+                if goalY - meanEstimateY > 0:
+                    faceGoal = 0 - angleToGoal
+                    finishAngle = -(math.pi / 2) + angleToGoal
+                else:
+                    faceGoal = -math.pi + angleToGoal
+                    finishAngle = (math.pi / 2) - angleToGoal
+            else:
+                if goalY - meanEstimateY > 0:
+                    faceGoal = angleToGoal
+                    finishAngle = -(math.pi / 2) - angleToGoal
+                else:
+                    faceGoal = math.pi - angleToGoal
+                    finishAngle = (math.pi / 2) + angleToGoal
+            await robot.turn_in_place(radians(faceGoal)).wait_for_completed()
+
+            robot.stop_all_motors()
+
+            distanceToGoal = grid_distance(goalX, goalY, meanEstimateX, meanEstimateY)
+            print("MATH:", math.hypot(math.fabs(goalX - meanEstimateX), math.fabs(goalY - meanEstimateY)))
+            print(meanEstimateX, ",", meanEstimateY)
+            print(goalX, ",", goalY)
+            print("GRID DIST:", distanceToGoal)
+            start = time.time()
+
+            while end - start < distanceToGoal:
+                await robot.drive_straight(distance_mm(0), speed=speed_mmps(50)).wait_for_completed()
+                if robot.is_picked_up:
+                    print("Picked Up")
+                    robot.stop_all_motors()
+                    pf = ParticleFilter(grid)
+                    await robot.play_anim_trigger(anim.Triggers.ReactToPickup).wait_for_completed()
+                    await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
+                    await robot.drive_straight(distance_mm(0), speed_mmps(50)).wait_for_completed()
+                    break
+                print("Driving")
+                await robot.drive_wheels(30, 30, duration=0)
+                await robot.drive_straight(distance_mm(0), speed=speed_mmps(50)).wait_for_completed()
+                end = time.time()
+
+            robot.stop_all_motors()
+            print("Here")
+            print(robot.is_picked_up)
+            if robot.is_picked_up:
+                print("PICKED UP")
+                pf = ParticleFilter(grid)
+                await robot.play_anim_trigger(anim.Triggers.ReactToPickup).wait_for_completed()
+                await robot.set_head_angle(degrees(10)).wait_for_completed()
+                await robot.drive_straight(distance_mm(0), speed_mmps(50)).wait_for_completed()
+                continue
+
+            # await turnToFace(degrees(finishAngle), 0, robot)
+            print("Turning: ", finishAngle)
+            await robot.turn_in_place(radians(finishAngle)).wait_for_completed()
+            await robot.play_anim_trigger(anim.Triggers.BuildPyramidSuccess).wait_for_completed()
+
+            goalReached = True
+
+        last_pose = currPose
 
 
 class CozmoThread(threading.Thread):
